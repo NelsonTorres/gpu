@@ -9,29 +9,22 @@
 
 layer::layer() {
 	numNeurons = -1;
-	connection_start =-1;
-	connection_end = -1;
+	bias.value = (rand()%10 )/ 10;
 }
 
 layer::layer(int numNeurons) {
   this->numNeurons = numNeurons;
-	connection_start =-1;
-	connection_end = -1;
-  //this->neurons = new Neuron[numNeurons];
 }
 
 void layer::setNeurons(int numNeurons) {
   this->numNeurons = numNeurons;
-  //this->neurons = new Neuron[numNeurons];
 }
 
-layer::~layer() {
-	// TODO Auto-generated destructor stub
-}
+layer::~layer() {}
 
 void layer::setActivation(int func){
-	for(int i =0;i< numNeurons;++i){
-		neurons[i].setActivation(func);
-	}
+  for(int i =0;i< numNeurons;++i){
+	neurons[i].setActivation(func);
+  }
 }
 

@@ -8,7 +8,7 @@
 #ifndef NEURON_H_
 #define NEURON_H_
 
-
+#include <stdlib.h>
 
 class Neuron {
 public:
@@ -20,8 +20,10 @@ public:
 	float slope;
 	float prev_step;
 	float prev_slope;
+	float connections[64];
 	Neuron();
 	void setActivation(int);
+	void setConnections(int start, int end);
 	virtual ~Neuron();
 };
 

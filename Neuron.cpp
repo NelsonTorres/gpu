@@ -13,16 +13,17 @@ Neuron::Neuron() {
 	sum = 0;
 	value = 0;
 	prev_slope = 0;
-	prev_step = 0;
+	prev_step = 0.0001;
 	activation_function = 0;
-	activation_steepness = 0;
-
+	activation_steepness = 1;
+	for(int i=0;i<64 ;++i){
+		connections[i] = (rand()%100) / 50;
+	}
 }
 
 
 
 Neuron::~Neuron() {
-	// TODO Auto-generated destructor stub
 }
 
 void Neuron::setActivation(int func){
@@ -30,4 +31,8 @@ void Neuron::setActivation(int func){
 	error = 0;
 	slope = 0;
 	prev_step = 0.0001;
+}
+
+void Neuron::setConnections(int start, int end){
+
 }

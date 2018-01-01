@@ -8,14 +8,14 @@
 #ifndef LAYER_H_
 #define LAYER_H_
 
+#include <stdlib.h>
 #include "Neuron.h"
 
 class layer {
 public:
-	Neuron neurons[28];
+	Neuron neurons[64];
+	Neuron bias;
 	int numNeurons;
-	int connection_start;
-	int  connection_end;
 	layer();
 	void setActivation(int);
 	void setNeurons(int);

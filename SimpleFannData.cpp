@@ -29,14 +29,16 @@ SimpleFannData::SimpleFannData(const char* path){
   file >> num_data >> num_input >> num_output;
   line++;
 
-  std::cout << num_data << " " <<num_input << " "<<num_output << "\n";
-
+  double aux;
   for(i = 0; i < num_data; i++){
 	for(j = 0; j < num_input; j++){
-      file >> this->input[i* num_input +j];
+      file >> aux;
+      this->input[i* num_input +j] = (float) aux;
 	}
+	line++;
 	for(j = 0; j < num_output; j++){
-	  file >> this->output[i* num_input + j];
+	  file >> aux;
+	  this->output[i* num_output + j] = (float) aux;
 	}
 	line++;
   }

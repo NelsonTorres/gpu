@@ -16,7 +16,7 @@ class SimpleFannData{
   unsigned int num_data;
   unsigned int num_input;
   unsigned int num_output;
-  float input[280], output[28];
+  float input[90000], output[5000];
 
   SimpleFannData();
   SimpleFannData(const char*);
