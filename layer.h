@@ -13,7 +13,7 @@
 
 class layer {
 public:
-	Neuron neurons[64];
+	Neuron neurons[597];
 	Neuron bias;
 	int numNeurons;
 	layer();

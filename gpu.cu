@@ -257,7 +257,7 @@ void fann_train_epoch_irpropm_parallel(SimpleFann*  ann, SimpleFannData* data){
 
 void execute(SimpleFann* d_ann, SimpleFannData* d_data, unsigned int num_threads){
 
-  fann_train_epoch_irpropm_parallel<<<1,64>>>(d_ann, d_data);
+  fann_train_epoch_irpropm_parallel<<<1,num_threads>>>(d_ann, d_data);
   cudaError_t  error = cudaGetLastError();
   cudaHandler(error);
   cudaDeviceSynchronize();
@@ -270,8 +270,9 @@ typedef std::chrono::high_resolution_clock Clock;
 
 int main(int argc, char** argv){
 
-	string train = "/home/nelson/Desktop/tese/DBN/datasets/train1.csv";
-	const unsigned int num_input = 18;
+	//string train = "/home/nelson/Desktop/tese/DBN/datasets/train1.csv";
+	string train = "/home/a65445/tese/DBN/datasets/HIGGS_2_train.csv"
+	const unsigned int num_input = 597;
 	const unsigned int num_output = 1;
 	const unsigned int num_layers = 3;
 	const unsigned int num_neurons_hidden = stoi(argv[1]);
@@ -279,6 +280,7 @@ int main(int argc, char** argv){
 	unsigned int neurons[3] = {num_input, num_neurons_hidden, num_output};
 
     int num_threads = stoi(argv[2]);
+    int epochs = stoi(argv[3]);
 	srand(0);
 	SimpleFann ann(num_layers, neurons);
 	SimpleFannData data = SimpleFannData(train.c_str());
@@ -294,8 +296,7 @@ int main(int argc, char** argv){
 	cudaMemcpy(d_ann, &ann, sizeof(ann), cudaMemcpyHostToDevice);
     cudaMemcpy(d_data, &data, sizeof(data), cudaMemcpyHostToDevice);
 
-	for(int i = 0 ;i<100;++i){
-	  cout << "i: "<< i <<"\n";
+	for(int i = 0 ;i<epochs;++i){
 	  execute(d_ann, d_data, num_threads);
 	  //fann_train_epoch_irpropm_parallel(&ann,&data);
 	  //update_weights(&ann, &data);
@@ -306,8 +307,8 @@ int main(int argc, char** argv){
 
 
 	for(int i = 0; i < data.num_data ; i++){
-		fann_run_cpu(&ann, data.input+(i*num_input), data.num_input);
-		cout << ann.layers[ann.num_layers - 1].neurons[0].value << " " << data.output[i * data.num_output]<< endl;
+	  fann_run_cpu(&ann, data.input+(i*num_input), data.num_input);
+	  cout << ann.layers[ann.num_layers - 1].neurons[0].value << " " << data.output[i * data.num_output]<< endl;
 	}
 
 	cudaFree(d_ann);

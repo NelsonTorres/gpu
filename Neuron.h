@@ -20,7 +20,7 @@ public:
 	float slope;
 	float prev_step;
 	float prev_slope;
-	float connections[64];
+	float connections[597];
 	Neuron();
 	void setActivation(int);
 	void setConnections(int start, int end);

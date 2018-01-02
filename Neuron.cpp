@@ -16,7 +16,7 @@ Neuron::Neuron() {
 	prev_step = 0.0001;
 	activation_function = 0;
 	activation_steepness = 1;
-	for(int i=0;i<64 ;++i){
+	for(int i=0;i<597;++i){
 		connections[i] = (rand()%100) / 50;
 	}
 }
