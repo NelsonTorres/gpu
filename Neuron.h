@@ -17,7 +17,7 @@ public:
 	float activation_steepness;
 	int activation_function;
 	float error;
-	float slope;
+	float slope[32];
 	float prev_step;
 	float prev_slope;
 	float connections[597];

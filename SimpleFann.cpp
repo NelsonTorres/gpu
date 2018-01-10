@@ -32,8 +32,6 @@ SimpleFann::SimpleFann(int num_layers, unsigned int* layersSize){
 		}
 	}
 
-
-
 	this->MSE_value = 0;
 	this->num_MSE = 0;
 }
