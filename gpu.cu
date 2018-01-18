@@ -62,9 +62,15 @@ void fann_update_slopes_batch(SimpleFann *ann){
   unsigned int i,j,k;
   int tid = threadIdx.x + threadIdx.y * blockDim.x;;
   for(i = 0; i < ann->num_layers-1; i++){
+<<<<<<< HEAD
     for(j = tid; j < ann->layers[i].numNeurons ; j++){
       for(k = 0; k < ann->layers[i+1].numNeurons; k++){
     	  ann->layers[i].neurons[j].slope[tid] += ann->layers[i+1].neurons[k].error[tid] * ann->layers[i].neurons[j].value[tid];
+=======
+    for(j = 0; j < ann->layers[i].numNeurons ; j++){
+      for(k = 0; k < ann->layers[i+1].numNeurons; k++){
+    	  ann->layers[i].neurons[j].slope[tid] += ann->layers[i+1].neurons[k].error * ann->layers[i].neurons[j].value;
+>>>>>>> c8066a19f7f804771d579b1eaae779254047a8ef
       }
     }
   }
@@ -106,11 +112,19 @@ void fann_backpropagate_MSE(SimpleFann *ann){
   int tid = threadIdx.x + threadIdx.y * blockDim.x;
 
   for(i = ann->num_layers - 2; i > -1; --i){
+<<<<<<< HEAD
     for(j = 0; j < ann->layers[i].numNeurons; j++){
       ann->layers[i].neurons[j].error[tid]  = 0;
       for(k = 0; k < ann->layers[i].numNeurons; k++){
          ann->layers[i].neurons[j].error[tid]  += ann->layers[i+1].neurons[k].error[tid] * ann->layers[i].neurons[j].connections[k];
       }
+=======
+	for(j = 0; j < ann->layers[i].numNeurons; j++){
+      ann->layers[i].neurons[j].error  = 0;
+	  for(k = 0; k < ann->layers[i].numNeurons; k++){
+		ann->layers[i].neurons[j].error  += ann->layers[i+1].neurons[k].error * ann->layers[i].neurons[j].connections[k];
+	  }
+>>>>>>> c8066a19f7f804771d579b1eaae779254047a8ef
     }
 
     for(j = 0; j < ann->layers[i].numNeurons; j++){
@@ -182,6 +196,7 @@ void update_weights(SimpleFann* ann, SimpleFannData* data){
   const float decrease_factor = 0.5;
   const float delta_min = 0;
   const float delta_max = 50;
+<<<<<<< HEAD
 
   for(i=0; i < ann->num_layers-1; i++){
     for(j=0; j < ann->layers[i].numNeurons; j++){
@@ -210,15 +225,68 @@ void update_weights(SimpleFann* ann, SimpleFannData* data){
 	  ann->layers[i].neurons[j].prev_step = next_step;
 	  ann->layers[i].neurons[j].prev_slope = ann->layers[i].neurons[j].slope[0];
 	  ann->layers[i].neurons[j].slope[0] = 0;
+=======
+  
+  for(i=0; i < ann->num_layers-1; i++){
+    for(j=0; j < ann->layers[i].numNeurons; j++){
+      same_sign = ann->layers[i].neurons[j].prev_slope * ann->layers[i].neurons[j].slopei[0];
+      if(same_sign >= 0.0)
+        next_step = ann->layers[i].neurons[j].prev_step * increase_factor < delta_max ? ann->layers[i].neurons[j].prev_step * increase_factor :  delta_max;
+      else{
+        next_step = ann->layers[i].neurons[j].prev_step * decrease_factor > delta_min ? ann->layers[i].neurons[j].prev_step * decrease_factor : delta_min;
+        ann->layers[i].neurons[j].slope[0] = 0;
+      }
+
+      if(ann->layers[i].neurons[j].slope[0] < 0){
+        for(k = 0; k < ann->layers[i].numNeurons; ++k){
+          ann->layers[i].neurons[j].connections[k] -= next_step;
+          if(ann->layers[i].neurons[j].connections[k] < -1500)
+            ann->layers[i].neurons[j].connections[k] = -1500;
 	}
+      }else{
+	for(k = 0; k < ann->layers[i].numNeurons; ++k){
+	  ann->layers[i].neurons[j].connections[k] += next_step;
+	  if(ann->layers[i].neurons[j].connections[k] > 1500)
+	    ann->layers[i].neurons[j].connections[k] = 1500;
+>>>>>>> c8066a19f7f804771d579b1eaae779254047a8ef
+	}
+      }
+
+	ann->layers[i].neurons[j].prev_step = next_step;
+	ann->layers[i].neurons[j].prev_slope = ann->layers[i].neurons[j].slope;
+	ann->layers[i].neurons[j].slope[0] = 0;
+    }
+  }
+}
+
+//TODO verify final output
+__device__
+void reduce_slopes(SimpleFann* ann){
+  //source https://stackoverflow.com/questions/5293139/cuda-multiple-kernels-to-compute-a-single-value
+  int N = 32;
+  int tid =	threadIdx.x + blockIdx.x * blockDim.x;
+  int stride =	blockDim.x;
+  __syncthreads();
+  for(i=1; i < ann->num_layers-1; i++){
+    for(j=tid; j < ann->layers[i].numNeurons; j+=stride){
+      for(k = 1; k < ann->layers[i-1].numNeurons; k ++){
+        ann->layers[i]->neurons[j].slopes[0] += ann->layers[i]->neurons[j].slopes[k];
+        ann->layers[i]->neurons[j].slopes[k] = 0;	
+    }
   }
 }
 
 __global__
 void fann_train_epoch_irpropm_parallel(SimpleFann*  ann, SimpleFannData* data){
-  for(int i=0;i < data->num_data;++i){
-    run(ann, data->input+(i*data->num_input) ,data->output + (i * data->num_output) , data->num_input, data->num_output);
+  int i;
+  int tid =	threadIdx.x + blockIdx.x * blockDim.x;
+  int stride = blockDim.x;
+
+  for(i=tid; i < data->num_data; i+=stride){
+    run( ann, data->input+(i*data->num_input) ,data->output + (i * data->num_output) , data->num_input, data->num_output);
   }
+  reduce_slopes(ann);
+  __syncthreads();
   update_weights(ann,data);
 };
 
