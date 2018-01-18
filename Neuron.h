@@ -12,12 +12,12 @@
 
 class Neuron {
 public:
-	float sum;
-	float value;
+	float sum[32];
+	float value[32];
 	float activation_steepness;
 	int activation_function;
-	float error;
-	float slope;
+	float error[32];
+	float slope[32];
 	float prev_step;
 	float prev_slope;
 	float connections[597];

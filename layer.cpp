@@ -9,7 +9,7 @@
 
 layer::layer() {
 	numNeurons = -1;
-	bias.value = (rand()%10 )/ 10;
+//	bias.value = (rand()%10 )/ 10;
 }
 
 layer::layer(int numNeurons) {
