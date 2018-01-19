@@ -10,18 +10,5 @@
 
 #include <iostream>
 #include <fstream>
-
-class SimpleFannData{
-  public:
-  unsigned int num_data;
-  unsigned int num_input;
-  unsigned int num_output;
-  float input[42316*597], output[42316];
-
-  SimpleFannData();
-  SimpleFannData(const char*);
-  void toString();
-  void cudaAllocate(SimpleFannData* );
-};
-
+void readData(const char *path, float* input, float* output) ;
 #endif /* SIMPLEFANNDATA_H_ */
