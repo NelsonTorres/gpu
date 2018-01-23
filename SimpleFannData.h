@@ -10,5 +10,5 @@
 
 #include <iostream>
 #include <fstream>
-void readData(const char *path, float* input, float* output) ;
+unsigned readData(const char *path, float* input, float* output) ;
 #endif /* SIMPLEFANNDATA_H_ */

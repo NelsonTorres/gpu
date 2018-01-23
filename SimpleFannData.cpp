@@ -23,10 +23,10 @@ unsigned readData(const char *path, float* input, float* output) {
 
   for (i = 0; i < num_data; i++) {
     for (j = 0; j < num_input; j++) {
-      file >> this->input[i * num_input + j];
+      file >> input[i * num_input + j];
     }
     for (j = 0; j < num_output; j++) {
-      file >> this->output[i * num_output + j];
+      file >> output[i * num_output + j];
     }
   }
   file.close();
