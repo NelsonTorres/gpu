@@ -18,9 +18,6 @@ unsigned readData(const char *path, float* input, float* output) {
 
   file >> num_data >> num_input >> num_output;
 
-  input = new float[num_data * num_input];
-  output = new float[num_data * num_output];
-
   for (i = 0; i < num_data; i++) {
     for (j = 0; j < num_input; j++) {
       file >> input[i * num_input + j];

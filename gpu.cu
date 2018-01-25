@@ -117,7 +117,7 @@ float activation_switch(int activation_function, float sum) {
 
 
 __device__ __host__
-float* fpropagate(float *w1, int function, float * input, int N1,int  N2, float* output) {
+float* fpropagate(float *w1, int function, float * input, unsigned N1,unsigned  N2, float* output) {
   int i, j;
   float max_sum = 150;
   for (i = 0; i < N2 ; i++) {
@@ -185,38 +185,43 @@ void reduce_slopes(float* s, int N1) {
 }
 
 __global__
-void train(float* w1,float* e1,float* s1,float* prevSlopes1, float* prevSteps1, float* w2, float* e2,float* s2,float* prevSlopes2, float* prevSteps2,  int* functions, const int num_input ,const int num_hidden_neurons, const int num_output, float* input, float* output, unsigned num_data) {
+void train(unsigned* num_epoch, float* w1,float* e1,float* s1,float* prevSlopes1, float* prevSteps1, float* w2, float* e2,float* s2,float* prevSlopes2, float* prevSteps2,  int* functions, unsigned* num_input ,unsigned* num_hidden_neurons, unsigned* num_output, float* input, float* output, unsigned* num_data) {
   int i;
+  int epoch;
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   int stride = blockDim.x * gridDim.x;
   float e3;
-  float* output1 = new float[num_hidden_neurons], *output2 = new float[num_output];
-  
-  for (i = tid; i < num_data; i += stride) {
-    output1 = fpropagate(w1, functions[0], input + (i *num_input), num_input, num_hidden_neurons, output1);
-    output2 = fpropagate(w2, functions[1], output1, num_hidden_neurons, num_output, output2);
-    e3 = compute_MSE(output2[0], output + (i * num_output), functions[2]);
-    backpropagate(w2, e2, &e3, functions[1], num_hidden_neurons, num_output, input + (i *num_input) );
-    backpropagate(w1, e1, e2, functions[0], num_input, num_hidden_neurons,  input + (i *num_input)    );
-    update_slopes(s1, e1, output1, num_input);
-    update_slopes(s2, e2, output2, num_hidden_neurons);
+  float* output1 = new float[num_hidden_neurons[0]], *output2 = new float[num_output[0]];
+  for(epoch = 0;epoch < num_epoch[0]; epoch++){
+    for (i = tid; i < num_data[0]; i += stride) {
+      output1 = fpropagate(w1, functions[0], input + (i *num_input[0]), num_input[0], num_hidden_neurons[0], output1);
+      output2 = fpropagate(w2, functions[1], output1, num_hidden_neurons[0], num_output[0], output2);
+      e3 = compute_MSE(output2[0], output + (i * num_output[0]), functions[2]);
+      backpropagate(w2, e2, &e3, functions[1], num_hidden_neurons[0], num_output[0], input + (i *num_input[0]) );
+      backpropagate(w1, e1, e2, functions[0], num_input[0], num_hidden_neurons[0],  input + (i *num_input[0])    );
+      update_slopes(s1, e1, output1, num_input[0]);
+      update_slopes(s2, e2, output2, num_hidden_neurons[0]);
+    }
+
+    //TODO single
+    __syncthreads();
+    reduce_slopes(s1, num_input[0]);
+    reduce_slopes(s2, num_hidden_neurons[0]);
+    __syncthreads();
+
+    update_weights(w1, e1, s1, prevSlopes1, prevSteps1, functions[0], num_input[0], num_hidden_neurons[0]);
+    update_weights(w2, e2, s2, prevSlopes2, prevSteps2, functions[1], num_hidden_neurons[0], num_output[0]);
   }
-
-  //TODO single
-  __syncthreads();
-  reduce_slopes(s1, num_input);
-  reduce_slopes(s2, num_hidden_neurons);
-  __syncthreads();
-
-  update_weights(w1, e1, s1, prevSlopes1, prevSteps1, functions[0], num_input, num_hidden_neurons);
-  update_weights(w2, e2, s2, prevSlopes2, prevSteps2, functions[1], num_hidden_neurons, num_output);
+    __syncthreads();
+    free(output1);
+    free(output2);
 };
 
-void executeKernel(unsigned num_threads, float* w1, float* e1, float* s1, float* prevSlopes1, float* prevSteps1 , float* w2, float* e2, float* s2, float* prevSlopes2, float* prevSteps2, int* functions, const int num_input, const int num_hidden_neurons, const int num_output, float* input, float* output, unsigned num_data ) {
+void executeKernel(unsigned* num_epoch, unsigned num_threads, float* w1, float* e1, float* s1, float* prevSlopes1, float* prevSteps1 , float* w2, float* e2, float* s2, float* prevSlopes2, float* prevSteps2, int* functions, unsigned *num_input, unsigned *num_hidden_neurons, unsigned *num_output, float* input, float* output, unsigned *num_data ) {
   int maxBlockSize = 1024;
   int blocks = num_threads / maxBlockSize + 1;
   num_threads = num_threads / blocks * 1.0; //WARN 513/2 = 256.5 -> 256
-  train<<< blocks, num_threads >>> (w1,  e1,  s1, prevSlopes1, prevSteps1, w2, e2, s2, prevSlopes2, prevSteps2, functions, num_input, num_hidden_neurons, num_output, input, output ,num_data);
+  train<<< blocks, num_threads >>> (num_epoch , w1,  e1,  s1, prevSlopes1, prevSteps1, w2, e2, s2, prevSlopes2, prevSteps2, functions, num_input, num_hidden_neurons, num_output, input, output ,num_data);
   cudaError_t error = cudaGetLastError();
   cudaHandler(error);
   cudaDeviceSynchronize();
@@ -229,10 +234,10 @@ typedef std::chrono::high_resolution_clock Clock;
 int main(int argc, char **argv) {
 
   string train = "/home/a65445/tese/DBN/datasets/train1.csv";
-  const unsigned int num_input = 18;
-  const unsigned int num_output = 1;
-  const unsigned int num_layers = 3;
-  const unsigned int num_neurons_hidden = stoi(argv[1]);
+  unsigned num_input = 18;
+  unsigned num_output = 1;
+  unsigned num_layers = 3;
+  unsigned num_neurons_hidden = stoi(argv[1]);
   
   int num_threads = stoi(argv[2]);
   int epochs = stoi(argv[3]);
@@ -294,13 +299,20 @@ int main(int argc, char **argv) {
     prevSteps2[i] = 0.0001;
   }
 
-  float *input = NULL, *output = NULL;
-  unsigned num_data;
-  num_data = readData(train.c_str(),input, output);
+  unsigned num_data=5000;
+  float input[num_data * num_input], output[num_data * num_output] ;
+  readData(train.c_str(),input, output);
 
   float *d_w1, *d_w2, *d_input, *d_output, *d_e1, *d_e2, *d_s1, *d_s2, *d_prevSlopes1, *d_prevSlopes2, *d_prevSteps1, *d_prevSteps2;
   int* d_functions;
+  unsigned* d_num_input,* d_num_neurons_hidden,* d_num_output,* d_num_data, *d_num_epochs;
 
+  cudaMalloc((void **) &d_num_input,  sizeof(unsigned));
+  cudaMalloc((void **) &d_num_neurons_hidden, sizeof(unsigned));
+  cudaMalloc((void **) &d_num_output, sizeof(unsigned));
+  cudaMalloc((void **) &d_num_data, sizeof(unsigned));
+  
+  cudaMalloc((void **) &d_num_epochs, sizeof(unsigned));
   cudaMalloc((void **) &d_w1, w1Size * sizeof(float));
   cudaMalloc((void **) &d_w2, w2Size * sizeof(float));
   cudaMalloc((void **) &d_input, num_data * num_input * sizeof(float));
@@ -314,6 +326,7 @@ int main(int argc, char **argv) {
   cudaMalloc((void **) &d_prevSlopes2, e2Size * sizeof(float));
   cudaMalloc((void **) &d_prevSteps1, e1Size * sizeof(float));
   cudaMalloc((void **) &d_prevSteps2, e2Size * sizeof(float));
+  
 
   cudaMemcpy(d_w1, &w1, w1Size * sizeof(float), cudaMemcpyHostToDevice);
   cudaMemcpy(d_w2, &w2, w2Size * sizeof(float), cudaMemcpyHostToDevice);
@@ -321,19 +334,28 @@ int main(int argc, char **argv) {
   cudaMemcpy(d_e2, &e2, e2Size * sizeof(float), cudaMemcpyHostToDevice);
   cudaMemcpy(d_s1, &s1, e1Size * sizeof(float), cudaMemcpyHostToDevice);
   cudaMemcpy(d_s2, &s2, e2Size * sizeof(float), cudaMemcpyHostToDevice);
+  cout << "functions\n";
   cudaMemcpy(d_functions, &functions, num_layers * sizeof(int), cudaMemcpyHostToDevice);
+  cout << "slopes\n";
   cudaMemcpy(d_prevSlopes1, &prevSlopes1, e1Size * sizeof(float), cudaMemcpyHostToDevice);
   cudaMemcpy(d_prevSlopes2, &prevSlopes2, e2Size * sizeof(float), cudaMemcpyHostToDevice);
+  cout << "steps\n";
   cudaMemcpy(d_prevSteps1, &prevSteps1, e1Size * sizeof(float), cudaMemcpyHostToDevice);
-  cudaMemcpy(d_prevSteps1, &prevSteps1, e2Size * sizeof(float), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_prevSteps2, &prevSteps2, e2Size * sizeof(float), cudaMemcpyHostToDevice);
+  cout << "data\n";
   cudaMemcpy(d_input, &input, num_input * num_data * sizeof(float), cudaMemcpyHostToDevice);
   cudaMemcpy(d_output, &output,  num_output * num_data * sizeof(float), cudaMemcpyHostToDevice);
 
-  for(i = 0; i < epochs; ++i) {
-    cout << i << "\n";
-    executeKernel(num_threads, d_w1, d_e1, d_s1, d_prevSlopes1, d_prevSteps1, d_w2, d_e2, d_s2, d_prevSlopes2, d_prevSteps2, d_functions, num_input, num_neurons_hidden, num_output, d_input, d_output, num_data);
-  }
+  cout << "variables\n";
+  cudaMemcpy(d_num_input, &num_input,  sizeof(unsigned), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_num_neurons_hidden, &num_neurons_hidden,  sizeof(unsigned), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_num_output, &num_output,  sizeof(unsigned), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_num_data, &num_data,  sizeof(unsigned), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_num_epochs, &epochs,  sizeof(unsigned), cudaMemcpyHostToDevice);
 
+    executeKernel(d_num_epochs, num_threads, d_w1, d_e1, d_s1, d_prevSlopes1, d_prevSteps1, d_w2, d_e2, d_s2, d_prevSlopes2, d_prevSteps2, d_functions, d_num_input, d_num_neurons_hidden, d_num_output, d_input, d_output, d_num_data);
+  
+  cout << "copy back\n";
   cudaMemcpy(w1, d_w1, w1Size * sizeof(float), cudaMemcpyDeviceToHost);
   cudaMemcpy(w2, d_w2, w2Size * sizeof(float), cudaMemcpyDeviceToHost);
   cudaMemcpy(input, d_input, num_input * num_data * sizeof(float), cudaMemcpyDeviceToHost);
@@ -348,10 +370,14 @@ int main(int argc, char **argv) {
   cudaMemcpy(prevSteps1, d_prevSteps1, numNeurons * sizeof(float), cudaMemcpyDeviceToHost);
   cudaMemcpy(prevSteps2, d_prevSteps2, numNeurons * sizeof(float), cudaMemcpyDeviceToHost);
 
+  for(i=0;i<w1Size;++i)
+    cout << w1[i]<<" ";
 
-  float output1[num_neurons_hidden], output2[num_output];
+
+  float* output1 = new float[num_neurons_hidden], *output2 = new float[num_output];
   for (i = 0; i < num_data; i++) {
-    fpropagate(w2, functions[1],fpropagate(w1, functions[0], input+ (i * num_input), num_input, num_neurons_hidden, output1),num_neurons_hidden,num_output,output2);
+    output1 = fpropagate(w1, functions[0], input+ (i * num_input), num_input, num_neurons_hidden, output1);
+    output2 = fpropagate(w2, functions[1],output1 ,num_neurons_hidden, num_output, output2);
     cout << output2[0] << " " << output[i] << endl;
   }
 
